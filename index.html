@@ -5,12 +5,73 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <title>What It's Like</title>
         <meta name="viewport" content="width=device-width">
+        
+        <script src="js/sugar-1.3.9.min.js"></script>
+        <script src='http://api.tiles.mapbox.com/mapbox.js/v0.6.7/mapbox.js'></script>
+        <script src="js/main.js"></script>
+
+        <link href='http://api.tiles.mapbox.com/mapbox.js/v0.6.7/mapbox.css' rel='stylesheet' />
         <link rel="stylesheet" href="css/main.css">
     </head>
     <body>
-        <div class="foo"></div>
+        <div id='map'></div>
+        <script src='http://d3js.org/d3.v2.min.js'></script>
+        <script>
+            function d3layer() {
+                var f = {}, bounds, feature, collection;
+                var div = d3.select(document.body)
+                    .append("div")
+                    .attr('class', 'd3-vec'),
+                    svg = div.append('svg'),
+                    g = svg.append("g");
 
-        <script src="js/sugar-1.3.9.min.js"></script>
-        <script src="js/main.js"></script>
+                f.parent = div.node();
+
+                f.project = function(x) {
+                  var point = f.map.locationPoint({ lat: x[1], lon: x[0] });
+                  return [point.x, point.y];
+                };
+
+                var first = true;
+                f.draw = function() {
+                  first && svg.attr("width", f.map.dimensions.x)
+                      .attr("height", f.map.dimensions.y)
+                      .style("margin-left", "0px")
+                      .style("margin-top", "0px") && (first = false);
+
+                  path = d3.geo.path().projection(f.project);
+                  feature.attr("d", path);
+                };
+
+                f.data = function(x) {
+                    collection = x;
+                    bounds = d3.geo.bounds(collection);
+                    feature = g.selectAll("path")
+                        .data(collection.features)
+                        .enter().append("path");
+                    return f;
+                };
+
+                f.extent = function() {
+                    return new MM.Extent(
+                        new MM.Location(bounds[0][1], bounds[0][0]),
+                        new MM.Location(bounds[1][1], bounds[1][0]));
+                };
+                return f;
+            }
+            var new_jersey = {"type":"FeatureCollection","features":[
+              {"type":"Feature","id":"34","properties":{"name":"New Jersey"},"geometry":{"type":"Polygon","coordinates":[[[-74.236547,41.14083],[-73.902454,40.998429],[-74.022947,40.708151],[-74.187255,40.642428],[-74.274886,40.489074],[-74.001039,40.412397],[-73.979131,40.297381],[-74.099624,39.760641],[-74.411809,39.360824],[-74.614456,39.245808],[-74.795195,38.993869],[-74.888303,39.158177],[-75.178581,39.240331],[-75.534582,39.459409],[-75.55649,39.607286],[-75.561967,39.629194],[-75.507197,39.683964],[-75.414089,39.804456],[-75.145719,39.88661],[-75.129289,39.963288],[-74.82258,40.127596],[-74.773287,40.215227],[-75.058088,40.417874],[-75.069042,40.543843],[-75.195012,40.576705],[-75.205966,40.691721],[-75.052611,40.866983],[-75.134765,40.971045],[-74.882826,41.179168],[-74.828057,41.288707],[-74.69661,41.359907],[-74.236547,41.14083]]]}},
+            ]};
+
+          mapbox.load('jneiku.map-ayx760yj', function(o){
+            var map = mapbox.map('map');
+            map.addLayer(o.layer);
+            map.interaction.auto();
+
+            l = d3layer().data(new_jersey);
+            map.addLayer(l);
+            map.extent(l.extent());
+          });
+        </script>
     </body>
 </html>
