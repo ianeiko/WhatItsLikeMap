@@ -5,6 +5,7 @@ import json
 import urllib
 from copy import copy
 from couchdb.client import Server, Database
+from xml.dom import minidom
 
 
 def main():
@@ -16,8 +17,8 @@ def main():
 	db = s.create('country_data') if not 'country_data' in s else s['country_data']
 
 	# http://data.worldbank.org/developers/climate-data-api
-	base_url = 'http://climatedataapi.worldbank.org/climateweb/rest/v1/country/%(type)s/%(GCM)s/%(var)s/%(start)s/%(end)s/%(country)s.json'
-	base_args = {
+	climate_base_url = 'http://climatedataapi.worldbank.org/climateweb/rest/v1/country/%(type)s/%(GCM)s/%(var)s/%(start)s/%(end)s/%(country)s.json'
+	climate_base_args = {
 		'type': 'mavg',
 		'var': 'pr',
 		'start': '1980',
@@ -25,31 +26,46 @@ def main():
 		'GCM': 'bccr_bcm2_0',
 		'country': 'CAN'
 	}
+	kml_base_url = 'http://climatedataapi.worldbank.org/climateweb/rest/v1/country/kmlpart/%(simplification)s/%(country)s'
+	kml_base_args = {
+		'simplification': '.5',
+		'country': 'CAN'
+	}
 
 	for country in countries:
-		args = copy(base_args)
+		climate_args = copy(climate_base_args)
+		kml_args = copy(kml_base_args)
 		doc = {
 			'_id': country,
-			'fromYear': args['start'],
-			'toYear': args['end'],
-			'gcm': args['GCM']
-		}
+			'fromYear': climate_args['start'],
+			'toYear': climate_args['end'],
+			'gcm': climate_args['GCM']
+		} if not country in db else db[country]
 		
 		try:
 			for var in ('tas', 'pr'):
-				args.update({
+				climate_args.update({
 					'var': var,
 					'country': country,
 				})
 				
-				url = base_url % args
+				url = climate_base_url % climate_args
 				handle = urllib.urlopen(url)
 				data = json.loads(handle.read())
 
 				doc[var] = data[0]['monthVals']
 			
+			kml_args.update({
+				'country': country
+			})
+			url = kml_base_url % kml_args
+			handle = urllib.urlopen(url)
+			kml = minidom.parse(handle)
+
+			doc['coordinates'] = [coord.childNodes[0].nodeValue.split(' ') for coord in kml.getElementsByTagName('coordinates')]
+
 			db.save(doc)
-		except:
+		except: 
 			print 'Failed to get %s' % country
 
 if __name__ == '__main__':
